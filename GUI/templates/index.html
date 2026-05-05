@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAS Workflow Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <!-- Brand -->
+            <div class="nav-brand">
+                <div class="nav-logo-wrap">
+                    <img src="{{ url_for('static', filename='images/Logo-Universität_des_Saarlandes.svg') }}"
+                         alt="Universität des Saarlandes" class="nav-logo nav-logo-uds">
+                </div>
+                <div class="nav-logo-divider"></div>
+                <div class="nav-logo-wrap">
+                    <img src="{{ url_for('static', filename='images/aes_logo.svg') }}"
+                         alt="AES" class="nav-logo nav-logo-aes">
+                </div>
+            </div>
+
+            <!-- Stepper -->
+            <div class="nav-stepper">
+                <div class="step-item active" onclick="showStep(1)" data-step="1">
+                    <div class="step-bubble">
+                        <div class="step-number">1</div>
+                        <span class="step-label">Asset</span>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" onclick="showStep(2)" data-step="2">
+                    <div class="step-bubble">
+                        <div class="step-number">2</div>
+                        <span class="step-label">Submodell</span>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" onclick="showStep(3)" data-step="3">
+                    <div class="step-bubble">
+                        <div class="step-number">3</div>
+                        <span class="step-label">Properties</span>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" onclick="showStep(4)" data-step="4">
+                    <div class="step-bubble">
+                        <div class="step-number">4</div>
+                        <span class="step-label">Deploy</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Badge + Settings -->
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <button class="btn btn-secondary btn-sm" onclick="openConnectionDialog()"
+                        title="Configure host IP and service ports"
+                        style="display:flex;align-items:center;gap:0.4rem;">
+                    <i data-feather="settings" style="width:14px;height:14px;"></i>
+                    <span id="conn-host-label">Connection</span>
+                </button>
+                <div class="nav-badge">
+                    <div class="nav-badge-dot"></div>
+                    BaSyx Ready
+                </div>
+            </div>
+        </nav>
+
+        <!-- Connection Settings Modal -->
+        <div id="connection-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+                    <div>
+                        <h2 style="margin:0;display:flex;align-items:center;gap:0.5rem;">
+                            <i data-feather="server" style="width:18px;height:18px;color:var(--accent-primary)"></i>
+                            Connection Settings
+                        </h2>
+                        <p class="text-muted" style="margin-top:0.35rem;font-size:0.85rem;">
+                            Host IP of the machine running the BaSyx stack and the per-service ports.
+                            Empty fields fall back to the defaults shown in grey.
+                        </p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="closeConnectionDialog()" title="Close">
+                        <i data-feather="x" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label>Host IP / Hostname</label>
+                    <input type="text" id="conn-host" placeholder="localhost or 192.168.x.x">
+                </div>
+
+                <div class="ports-grid">
+                    <div class="form-group">
+                        <label>AAS Environment <span class="field-hint">(REST)</span></label>
+                        <input type="number" id="port-aas" placeholder="8081">
+                    </div>
+                    <div class="form-group">
+                        <label>AAS Registry</label>
+                        <input type="number" id="port-aas_registry" placeholder="8082">
+                    </div>
+                    <div class="form-group">
+                        <label>Submodel Registry</label>
+                        <input type="number" id="port-sm_registry" placeholder="8083">
+                    </div>
+                    <div class="form-group">
+                        <label>AAS Discovery</label>
+                        <input type="number" id="port-discovery" placeholder="8084">
+                    </div>
+                    <div class="form-group">
+                        <label>Test Orchestrator <span class="field-hint">(IDTA validation)</span></label>
+                        <input type="number" id="port-orchestrator" placeholder="8085">
+                    </div>
+                    <div class="form-group">
+                        <label>InfluxDB</label>
+                        <input type="number" id="port-influxdb" placeholder="8086">
+                    </div>
+                    <div class="form-group">
+                        <label>MQTT Broker</label>
+                        <input type="number" id="port-mqtt" placeholder="1883">
+                    </div>
+                    <div class="form-group">
+                        <label>Grafana</label>
+                        <input type="number" id="port-grafana" placeholder="3001">
+                    </div>
+                    <div class="form-group">
+                        <label>BaSyx AAS Web UI</label>
+                        <input type="number" id="port-ui" placeholder="3000">
+                    </div>
+                </div>
+
+                <div class="page-actions" style="margin-top:1.25rem;">
+                    <button class="btn btn-secondary" onclick="resetConnectionDefaults()">
+                        <i data-feather="rotate-ccw" style="width:14px;height:14px;"></i>
+                        Reset to defaults
+                    </button>
+                    <button class="btn btn-primary" onclick="saveConnectionSettings()">
+                        <i data-feather="save" style="width:14px;height:14px;"></i>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- Phase 1: Asset Information -->
+            <section id="view-step-1" class="view-section fade-in">
+                <div class="page-header">
+                    <div class="page-header-eyebrow">Step 1 of 4</div>
+                    <h1>Create New AAS</h1>
+                    <p class="subtitle">Define the core identity of your Asset Administration Shell.</p>
+                </div>
+
+                <div class="card" style="max-width: 580px;">
+                    <form id="asset-info-form">
+                        <div class="form-group">
+                            <label>Asset Name <span class="field-hint" title="idShort in AAS model">(idShort)</span></label>
+                            <input type="text" id="assetName" placeholder="e.g., Battery_System_01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Asset ID <span class="field-hint" title="Global unique identifier">(Global Key)</span></label>
+                            <input type="text" id="assetId"
+                                placeholder="e.g., https://example.com/ids/assets/battery_01">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="assetDesc" placeholder="Brief description of the asset">
+                        </div>
+                        <div class="page-actions" style="margin-top: 1.75rem; padding-top: 1.25rem;">
+                            <span></span>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                                Next: Submodels <i data-feather="arrow-right"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Phase 2: Submodels -->
+            <section id="view-step-2" class="view-section" style="display: none;">
+                <div class="page-header">
+                    <div class="page-header-eyebrow">Step 2 of 4</div>
+                    <h1>Define Submodels</h1>
+                    <p class="subtitle">Organize your asset's data into logical submodels.</p>
+                </div>
+
+                <div style="display: flex; gap: 1.5rem;">
+                    <!-- Active Submodels -->
+                    <div class="card" style="flex: 1;">
+                        <h3 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-feather="layers" style="width:16px;height:16px;color:var(--accent-primary)"></i>
+                            Active Submodels
+                        </h3>
+                        <div id="submodel-list" class="list-container"></div>
+                        <div class="form-group" style="margin-top: 1.25rem;">
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="newSubmodelName" placeholder="e.g. Battery_Operational_Data">
+                                <button class="btn btn-secondary btn-sm" onclick="addNewSubmodel()">
+                                    <i data-feather="plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Templates -->
+                    <div class="card" style="flex: 1; background: rgba(79,142,247,0.03); border-style: dashed; border-color: rgba(79,142,247,0.2);">
+                        <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-feather="grid" style="width:16px;height:16px;color:var(--accent-purple)"></i>
+                            Quick Templates
+                        </h3>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.4rem; margin-bottom: 1rem;">
+                            Add standard submodels with one click.
+                        </p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <span class="tag" style="cursor: pointer;" onclick="quickAddSubmodel('TechnicalData')">+ TechnicalData</span>
+                            <span class="tag" style="cursor: pointer;" onclick="quickAddSubmodel('OperationalData')">+ OperationalData</span>
+                            <span class="tag" style="cursor: pointer;" onclick="quickAddSubmodel('ContactInfo')">+ ContactInfo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="showStep(1)">
+                        <i data-feather="arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" onclick="showStep(3)">
+                        Next: Properties <i data-feather="arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Phase 3: Properties & Data Binding -->
+            <section id="view-step-3" class="view-section" style="display: none;">
+                <div class="page-header">
+                    <div class="page-header-eyebrow">Step 3 of 4</div>
+                    <h1>Properties</h1>
+                    <p class="subtitle" style="margin-bottom: 0;">Manage data points and protocol connections.</p>
+                </div>
+
+                <!-- Submodel Tabs -->
+                <div class="submodel-property-tabs" id="submodel-tabs-container"></div>
+
+                <!-- No Submodel Placeholder -->
+                <div id="prop-no-submodel" style="display:none;">
+                    <div class="info-banner">
+                        <i data-feather="info" style="width:16px;height:16px;"></i>
+                        <span>No submodel selected. Go to Step 2 and add submodels first.</span>
+                    </div>
+                </div>
+
+                <!-- Inline 4-Step Config Panel -->
+                <div id="prop-config-panel" style="display:none;">
+
+                    <!-- JSON Import (optional pre-fill) -->
+                    <div class="config-section" style="border-style:dashed;border-color:rgba(79,142,247,0.3);background:rgba(79,142,247,0.03);">
+                        <p class="config-section-label">
+                            Import from JSON
+                            <span style="font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:0.4rem;">(optional — füllt Felder automatisch aus)</span>
+                        </p>
+                        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('json-file-input').click()">
+                                <i data-feather="upload" style="width:14px;height:14px;"></i>
+                                JSON-Datei auswählen
+                            </button>
+                            <span id="json-import-filename" style="color:var(--text-muted);font-size:0.82rem;font-style:italic;"></span>
+                            <span id="json-import-status" style="font-size:0.82rem;"></span>
+                        </div>
+                        <input type="file" id="json-file-input" accept=".json" style="display:none;" onchange="handleJsonFileSelect(this)">
+                        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;line-height:1.5;">
+                            Unterstützt: <strong>WoT Thing Description</strong> · <strong>Einfaches Device-Config-JSON</strong> (host / port / datapoints)<br>
+                            Die importierten Werte können danach manuell angepasst werden.
+                        </p>
+                        <div style="margin-top:0.75rem;">
+                            <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:0.4rem;">
+                                Template herunterladen (ext-Simulator Beispiel):
+                            </p>
+                            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('modbus')">🔌 Modbus</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('mqtt')">📡 MQTT</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('http')">🌐 HTTP</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('opcua')">🔷 OPC-UA</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('kafka')">⚡ Kafka</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('bacnet')">🏢 BACnet</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('ocpp')">🔋 OCPP</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('dlms')">📊 DLMS</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Protocol -->
+                    <div class="config-section">
+                        <p class="config-section-label">1 — Communication Protocol (Data Source)</p>
+                        <div class="protocol-selector" id="prop-protocol-selector">
+                            <div class="protocol-card" onclick="selectPropProtocol('modbus')" data-proto="modbus">
+                                <span class="protocol-icon">🔌</span>
+                                <span class="protocol-label">Modbus TCP</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('mqtt')" data-proto="mqtt">
+                                <span class="protocol-icon">📡</span>
+                                <span class="protocol-label">MQTT</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('http')" data-proto="http">
+                                <span class="protocol-icon">🌐</span>
+                                <span class="protocol-label">HTTP / REST</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('opcua')" data-proto="opcua">
+                                <span class="protocol-icon">🔷</span>
+                                <span class="protocol-label">OPC-UA</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('kafka')" data-proto="kafka">
+                                <span class="protocol-icon">⚡</span>
+                                <span class="protocol-label">Kafka</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('bacnet')" data-proto="bacnet">
+                                <span class="protocol-icon">🏢</span>
+                                <span class="protocol-label">BACnet</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('ocpp')" data-proto="ocpp">
+                                <span class="protocol-icon">🔋</span>
+                                <span class="protocol-label">OCPP</span>
+                            </div>
+                            <div class="protocol-card" onclick="selectPropProtocol('dlms')" data-proto="dlms">
+                                <span class="protocol-icon">📊</span>
+                                <span class="protocol-label">DLMS/COSEM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Connection Params -->
+                    <div class="config-section">
+                        <p class="config-section-label">2 — Connection Parameters</p>
+                        <div id="prop-protocol-config-body"></div>
+                    </div>
+
+                    <!-- Step 3: Target Data -->
+                    <div class="config-section">
+                        <p class="config-section-label">3 — Target Data — Properties</p>
+                        <div class="target-data-table">
+                            <div class="target-data-header-row" id="prop-target-header"></div>
+                            <div id="prop-target-data-rows"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Weitere Datasinks -->
+                    <div class="config-section">
+                        <p class="config-section-label">4 — Additional Data Sinks <span style="font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0">(optional)</span></p>
+                        <div id="sm-sink-body"></div>
+                    </div>
+
+                </div>
+
+                <!-- Upload AAS -->
+                <div id="prop-upload-aas-section" class="card" style="margin-top: 1.5rem; background: rgba(79,142,247,0.03); border-color: rgba(79,142,247,0.12);">
+                    <h3 style="display:flex;align-items:center;gap:0.5rem;">
+                        <i data-feather="upload-cloud" style="width:18px;height:18px;color:var(--accent-primary)"></i>
+                        Upload AAS
+                    </h3>
+                    <p class="text-muted" style="margin-top:0.3rem;">Generate AASX and upload to the central AAS Server.</p>
+                    <div style="margin-top: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.65rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                            <input type="checkbox" id="generate-idta-checkbox" checked
+                                style="width: 16px; height: 16px; accent-color: var(--accent-primary);">
+                            <span style="font-size: 0.875rem; color: var(--text-secondary);">Generate IDTA Submodels (AID + AIMC + TimeSeries)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.65rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                            <input type="checkbox" id="influx-auto-checkbox" checked
+                                style="width: 16px; height: 16px; accent-color: var(--accent-primary);">
+                            <span style="font-size: 0.875rem; color: var(--text-secondary);">Auto-provision InfluxDB bucket (per asset)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.65rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                            <input type="checkbox" id="grafana-auto-checkbox" checked
+                                style="width: 16px; height: 16px; accent-color: var(--accent-primary);">
+                            <span style="font-size: 0.875rem; color: var(--text-secondary);">Auto-generate Grafana dashboard</span>
+                        </label>
+                        <button class="btn btn-primary btn-block" onclick="uploadAASToServer(this)">
+                            <i data-feather="upload-cloud"></i> Generate &amp; Upload AAS
+                        </button>
+                        <p style="text-align: center; color: var(--text-muted); font-size: 0.78rem; margin-top: 0.85rem;">
+                            This will create the AASX file and register it on the repository server.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="showStep(2)">
+                        <i data-feather="arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" onclick="savePropConfig(); showStep(4);">
+                        Next: Deployment <i data-feather="arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Phase 4: Deployment -->
+            <section id="view-step-4" class="view-section" style="display: none;">
+                <div class="page-header">
+                    <div class="page-header-eyebrow">Step 4 of 4</div>
+                    <h1>Deployment &amp; DataBridge</h1>
+                    <p class="subtitle">Generate the AASX package and configure the live DataBridge.</p>
+                </div>
+
+                <!-- Deploy Card -->
+                <div class="card" style="background: rgba(0,0,0,0.15);">
+                    <h3 style="display:flex;align-items:center;gap:0.5rem; margin-bottom:0.4rem;">
+                        <i data-feather="server" style="width:16px;height:16px;color:var(--accent-primary)"></i>
+                        Deploy DataBridge
+                    </h3>
+                    <p class="text-muted">Choose your runtime strategy.</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.5rem;">
+                        <!-- Option A: Official BaSyx -->
+                        <div class="card deployment-option" onclick="selectDeployment('official', this)">
+                            <div class="selected-badge">Ausgewählt</div>
+                            <h4 style="color: var(--success); display: flex; align-items: center; gap: 0.5rem;">
+                                <i data-feather="lock" style="width:15px;height:15px;"></i> Official BaSyx
+                            </h4>
+                            <p style="font-size: 0.84rem; margin-top: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                                Generates official configuration files and launches the standard service.
+                            </p>
+                            <p style="font-size: 0.82rem; margin-top: 0.6rem; color: var(--text-muted);">
+                                <strong style="color:var(--text-secondary)">Best for:</strong> Standards Compliance
+                            </p>
+                        </div>
+
+                        <!-- Option B: Custom DataBridge -->
+                        <div class="card deployment-option selected" onclick="selectDeployment('custom', this)">
+                            <div class="selected-badge">Ausgewählt</div>
+                            <h4 style="color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem;">
+                                <i data-feather="tool" style="width:15px;height:15px;"></i> Custom DataBridge
+                            </h4>
+                            <p style="font-size: 0.84rem; margin-top: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                                Lightweight Python-based bridge with flexible polling.
+                            </p>
+                            <p style="font-size: 0.82rem; margin-top: 0.6rem; color: var(--text-muted);">
+                                <strong style="color:var(--text-secondary)">Best for:</strong> Development &amp; Speed
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Sink Config (Custom only) -->
+                    <div id="deploy-sink-wrapper"
+                        style="margin-top:1.5rem; border-top:1px solid var(--border-subtle); padding-top:1.5rem;">
+                        <div id="deploy-sink-config-body"></div>
+                    </div>
+
+                    <div style="margin-top: 1.75rem; text-align: right;">
+                        <button id="btn-deploy-bridge" class="btn btn-primary" onclick="executeBridgeDeployment()">
+                            <i data-feather="zap"></i> Deploy Custom DataBridge
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Official BaSyx Config Download -->
+                <div class="card" style="margin-top:1.25rem; background: rgba(0,0,0,0.15);">
+                    <h3 style="display:flex;align-items:center;gap:0.5rem;">
+                        <i data-feather="settings" style="width:16px;height:16px;color:var(--text-secondary)"></i>
+                        Official BaSyx DataBridge Config
+                    </h3>
+                    <p class="text-muted" style="margin-top:0.4rem;">
+                        Generate the official BaSyx DataBridge configuration files from the AAS qualifiers
+                        (<code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.35rem;border-radius:4px;font-size:0.78rem;">plc4xconsumer.json</code>,
+                        <code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.35rem;border-radius:4px;font-size:0.78rem;">aasserver.json</code>,
+                        <code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.35rem;border-radius:4px;font-size:0.78rem;">routes.json</code>, …).
+                    </p>
+                    <div style="margin-top:1rem;">
+                        <button class="btn btn-secondary btn-block" onclick="downloadDatabridgeConfig(this)">
+                            <i data-feather="download"></i> Download DataBridge Config (ZIP)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Container Manager AAS -->
+                <div class="card" style="margin-top:1.25rem; background: rgba(0,0,0,0.15);">
+                    <h3 style="display:flex;align-items:center;gap:0.5rem;">
+                        <i data-feather="box" style="width:16px;height:16px;color:var(--text-secondary)"></i>
+                        Container Manager AAS
+                    </h3>
+                    <p class="text-muted" style="margin-top:0.4rem;">
+                        Erstellt ein <strong>ContainerManager</strong>-AAS mit dem
+                        <code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.35rem;border-radius:4px;font-size:0.78rem;">ContainerControlPlugin</code>
+                        für jeden Docker-Container. Im BaSyx Web UI erscheinen dann Start / Stop / Neustart / Logs direkt im Asset.
+                    </p>
+                    <div style="margin-top:1rem;">
+                        <button class="btn btn-secondary btn-block" onclick="deployContainerManager(this)">
+                            <i data-feather="cpu"></i> Container Manager AAS deployen
+                        </button>
+                    </div>
+                    <div id="container-manager-result" style="display:none;margin-top:0.75rem;"></div>
+                </div>
+
+                <!-- Deploy result (shown after Generate & Upload AAS) -->
+                <div id="deploy-result-section" style="display:none; margin-top:1.5rem;"></div>
+
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="prevStep(3)">
+                        <i data-feather="arrow-left"></i> Back
+                    </button>
+                    <span></span>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        feather.replace();
+
+        // Update stepper state when showStep is called
+        const _origShowStep = typeof showStep === 'function' ? showStep : null;
+        function updateStepper(currentStep) {
+            document.querySelectorAll('.step-item').forEach(item => {
+                const s = parseInt(item.dataset.step);
+                item.classList.remove('active', 'completed');
+                if (s === currentStep) item.classList.add('active');
+                else if (s < currentStep) item.classList.add('completed');
+            });
+        }
+
+        // Patch showStep to also update stepper
+        const _baseShowStep = window.showStep;
+        window.showStep = function(step) {
+            _baseShowStep(step);
+            updateStepper(step);
+            feather.replace();
+        };
+
+        updateStepper(1);
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+[
+  {
+    "uniqueId": "Route_TEST_OperationalData_BatteryChargePower_SP_Write",
+    "direction": "write",
+    "submodelId": "https://example.com/submodels/test/operationaldata",
+    "aasIdShort": "Modbus.DataPoints.BatteryChargePower_SP.Value",
+    "protocol": "modbus",
+    "source": {
+      "uniqueId": "Route_TEST_OperationalData_BatteryChargePower_SP_Source",
+      "id": "Route_TEST_OperationalData_BatteryChargePower_SP_Source",
+      "protocol": "modbus",
+      "host": "ext-simulator",
+      "port": 5020,
+      "slave_id": 1,
+      "register": 0,
+      "register_type": "holding",
+      "dataType": "float32"
+    }
+  },
+  {
+    "uniqueId": "Route_TEST_OperationalData_BatteryDischargeLimit_SP_Write",
+    "direction": "write",
+    "submodelId": "https://example.com/submodels/test/operationaldata",
+    "aasIdShort": "Modbus.DataPoints.BatteryDischargeLimit_SP.Value",
+    "protocol": "modbus",
+    "source": {
+      "uniqueId": "Route_TEST_OperationalData_BatteryDischargeLimit_SP_Source",
+      "id": "Route_TEST_OperationalData_BatteryDischargeLimit_SP_Source",
+      "protocol": "modbus",
+      "host": "ext-simulator",
+      "port": 5020,
+      "slave_id": 1,
+      "register": 2,
+      "register_type": "holding",
+      "dataType": "float32"
+    }
+  }
+]

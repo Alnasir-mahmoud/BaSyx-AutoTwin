@@ -1,0 +1,101 @@
+{
+  "protocol": "dlms",
+  "description": "DLMS/COSEM — Stromzähler (ext-Simulator TCP Port 4059, WRAPPER-Modus)",
+  "host": "ext-simulator",
+  "port": 4059,
+  "clientId": 16,
+  "logicalDevice": 1,
+  "authLevel": "none",
+  "datapoints": [
+    {
+      "obisCode": "1.0.1.8.0.255",
+      "attribute": 2,
+      "description": "ActiveEnergyImport",
+      "type": "FLOAT64",
+      "unit": "kWh",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "1.0.2.8.0.255",
+      "attribute": 2,
+      "description": "ActiveEnergyExport",
+      "type": "FLOAT64",
+      "unit": "kWh",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "1.0.1.7.0.255",
+      "attribute": 2,
+      "description": "ActivePower",
+      "type": "FLOAT64",
+      "unit": "W",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "obisCode": "1.0.32.7.0.255",
+      "attribute": 2,
+      "description": "VoltageL1",
+      "type": "FLOAT64",
+      "unit": "V",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "1.0.52.7.0.255",
+      "attribute": 2,
+      "description": "VoltageL2",
+      "type": "FLOAT64",
+      "unit": "V",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "1.0.72.7.0.255",
+      "attribute": 2,
+      "description": "VoltageL3",
+      "type": "FLOAT64",
+      "unit": "V",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "1.0.31.7.0.255",
+      "attribute": 2,
+      "description": "CurrentL1",
+      "type": "FLOAT64",
+      "unit": "A",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "obisCode": "1.0.14.7.0.255",
+      "attribute": 2,
+      "description": "GridFrequency",
+      "type": "FLOAT64",
+      "unit": "Hz",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "obisCode": "0.1.24.3.0.255",
+      "attribute": 2,
+      "description": "GridPowerLimit_SP",
+      "type": "FLOAT64",
+      "unit": "W",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    },
+    {
+      "obisCode": "0.1.24.4.0.255",
+      "attribute": 2,
+      "description": "PeakPowerThreshold_SP",
+      "type": "FLOAT64",
+      "unit": "W",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    }
+  ]
+}

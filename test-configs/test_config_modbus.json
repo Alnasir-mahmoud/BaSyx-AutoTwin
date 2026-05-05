@@ -1,0 +1,73 @@
+{
+  "protocol": "modbus",
+  "description": "Modbus TCP — Batteriespeicher (ext-Simulator Port 5020, SlaveId=1)",
+  "host": "ext-simulator",
+  "port": 5020,
+  "slaveId": 1,
+  "polling": 1000,
+  "datapoints": [
+    {
+      "address": "30001",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatterySoc",
+      "unit": "%",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "address": "30003",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryVoltage",
+      "unit": "V",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "address": "30005",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryCurrent",
+      "unit": "A",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "address": "30007",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryTemperature",
+      "unit": "°C",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "address": "30009",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryPower",
+      "unit": "W",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "address": "40001",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryChargePower_SP",
+      "unit": "W",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    },
+    {
+      "address": "40003",
+      "type": "FLOAT32",
+      "byteOrder": "AB CD",
+      "description": "BatteryDischargeLimit_SP",
+      "unit": "W",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    }
+  ]
+}

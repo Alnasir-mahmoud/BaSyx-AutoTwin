@@ -1,0 +1,56 @@
+{
+  "protocol": "http",
+  "description": "HTTP/REST — Wetterstation & EV-Ladesteuerung (ext-Simulator Port 8082)",
+  "baseUrl": "http://ext-simulator:8082",
+  "method": "GET",
+  "polling": 5000,
+  "datapoints": [
+    {
+      "address": "/api/weather/temperature",
+      "description": "WeatherTemperature",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "address": "/api/weather/humidity",
+      "description": "WeatherHumidity",
+      "type": "FLOAT32",
+      "unit": "%",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "address": "/api/weather/wind_speed",
+      "description": "WeatherWindSpeed",
+      "type": "FLOAT32",
+      "unit": "m/s",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "address": "/api/control/ev_charge_power",
+      "description": "EvChargePower_SP",
+      "type": "FLOAT32",
+      "unit": "kW",
+      "jsonPath": "value",
+      "direction": "ReadWrite",
+      "method": "PUT",
+      "vizType": "gauge"
+    },
+    {
+      "address": "/api/control/ev_charge_current_limit",
+      "description": "EvChargeCurrentLimit_SP",
+      "type": "FLOAT32",
+      "unit": "A",
+      "jsonPath": "value",
+      "direction": "ReadWrite",
+      "method": "PUT",
+      "vizType": "gauge"
+    }
+  ]
+}

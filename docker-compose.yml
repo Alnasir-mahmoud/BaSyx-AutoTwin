@@ -1,0 +1,376 @@
+networks:
+  basyx-network:
+    driver: bridge
+
+services:
+  aas-env:
+    image: eclipsebasyx/aas-environment:2.0.0-SNAPSHOT
+    container_name: aas-env
+    environment:
+      - SERVER_PORT=8081
+      - JAVA_TOOL_OPTIONS=-Dzip.minInflateRatio=0.01
+      - HOST_IP=${HOST_IP:-localhost}
+    volumes:
+      - ./aas:/application/aas
+      - ./basyx/aas-env.properties:/application/application.properties
+      - ./static:/application/static
+    ports:
+      - '${AAS_ENV_PORT:-8081}:8081'
+    restart: always
+    depends_on:
+      aas-registry:
+        condition: service_healthy
+      sm-registry:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - basyx-network
+
+  aas-registry:
+    image: eclipsebasyx/aas-registry-log-mongodb:2.0.0-SNAPSHOT
+    container_name: aas-registry
+    ports:
+      - '${AAS_REGISTRY_PORT:-8082}:8081'
+    environment:
+      - SERVER_PORT=8081
+    volumes:
+      - ./basyx/aas-registry.yml:/workspace/config/application.yml
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - basyx-network
+
+  sm-registry:
+    image: eclipsebasyx/submodel-registry-log-mongodb:2.0.0-SNAPSHOT
+    container_name: sm-registry
+    ports:
+      - '${SM_REGISTRY_PORT:-8083}:8081'
+    environment:
+      - SERVER_PORT=8081
+    volumes:
+      - ./basyx/sm-registry.yml:/workspace/config/application.yml
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - basyx-network
+
+  aas-discovery:
+    image: eclipsebasyx/aas-discovery:2.0.0-SNAPSHOT
+    container_name: aas-discovery
+    environment:
+      - SERVER_PORT=8081
+    volumes:
+      - ./basyx/aas-discovery.properties:/application/application.properties
+    ports:
+      - '${DISCOVERY_PORT:-8084}:8081'
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - basyx-network
+
+  mongo:
+    image: mongo:5.0.10
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoAdmin
+      MONGO_INITDB_ROOT_PASSWORD: mongoPassword
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - basyx-network
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0.15
+    container_name: mosquitto
+    ports:
+      - '${MQTT_PORT:-1883}:1883'
+    volumes:
+      - ./mosquitto:/mosquitto
+    restart: always
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mosquitto_sub -p 1883 -t 'topic' -C 1 -E -i probe -W 3
+      interval: 5s
+      timeout: 10s
+      start_period: 1s
+      retries: 3
+    networks:
+      - basyx-network
+
+  aas-web-ui:
+    # Eclipse BaSyx AAS Web UI extended with Vue 3 plugins
+    # (WebIframeViewer + GrafanaDashboardViewer).
+    image: ghcr.io/alnasir-mahmoud/basyx-aas-web-ui-extended:v1.0.0
+    container_name: aas-ui
+    ports:
+      - "${UI_PORT:-3000}:3000"
+    environment:
+      AAS_REGISTRY_PATH: "http://localhost:8082/shell-descriptors"
+      SUBMODEL_REGISTRY_PATH: "http://localhost:8083/submodel-descriptors"
+      AAS_REPO_PATH: "http://localhost:8081/shells"
+      SUBMODEL_REPO_PATH: "http://localhost:8081/submodels"
+      CD_REPO_PATH: "http://localhost:8081/concept-descriptions"
+      AAS_DISCOVERY_PATH: "http://localhost:8084/lookup/shells"
+      INFLUXDB_TOKEN: "S18VeAlq042B4naMX31oqIaSGmUmOLAC-DV3VIdkxDJuAhTXLTVFEchyTSmCcUAmB7Wu94KgExzV8gJaDjzR3Q=="
+    depends_on:
+      - aas-env
+      - aas-registry
+      - sm-registry
+    networks:
+      - basyx-network
+
+  container-api:
+    build:
+      context: ./container-api
+      dockerfile: Dockerfile
+    container_name: container-api-basyx
+    ports:
+      - "${CONTAINER_API_PORT:-8090}:8090"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - basyx-network
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2
+    container_name: influxdb
+    ports:
+      - '${INFLUXDB_PORT:-8086}:8086'
+      - '9999:9999'
+    networks:
+      - basyx-network
+    volumes:
+      - ./influxdb/data:/var/lib/influxdb2
+      - ./influxdb/config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=influxpassword
+      - DOCKER_INFLUXDB_INIT_ORG=basyx
+      - DOCKER_INFLUXDB_INIT_BUCKET=hems
+      - >-
+        DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=S18VeAlq042B4naMX31oqIaSGmUmOLAC-DV3VIdkxDJuAhTXLTVFEchyTSmCcUAmB7Wu94KgExzV8gJaDjzR3Q==
+      - INFLUXD_HTTP_CORS_ENABLED=true
+      - INFLUXD_HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://${HOST_IP}:3000,http://${HOST_IP}:3001
+      - INFLUXD_HTTP_CORS_ALLOWED_HEADERS=Accept,Content-Type,Content-Length,Accept-Encoding,Authorization,X-CSRF-Token,X-Requested-With
+      - INFLUXD_HTTP_CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS,HEAD
+      - INFLUXD_HTTP_CORS_EXPOSE_HEADERS=Date,X-InfluxDB-Version,X-InfluxDB-Build
+    healthcheck:
+      test: "curl -f http://localhost:8086/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+  databridge-official:
+    build:
+      context: ./databridge
+    container_name: databridge-official
+    volumes:
+      # Generated automatically by generate_databridge_config_GUI.py
+      - ./CustomDatabridge/official-config:/usr/share/config
+    networks:
+      - basyx-network
+    restart: on-failure
+    depends_on:
+      aas-env:
+        condition: service_healthy
+      databridge-custom:
+        condition: service_started
+  databridge-custom:
+    build:
+      context: ./CustomDatabridge
+    container_name: databridge_GUI
+    ports:
+      - "${OCPP_CS_PORT:-9000}:9000"
+    environment:
+      - AAS_SERVER_URL=http://aas-env:8081
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=S18VeAlq042B4naMX31oqIaSGmUmOLAC-DV3VIdkxDJuAhTXLTVFEchyTSmCcUAmB7Wu94KgExzV8gJaDjzR3Q==
+      - INFLUXDB_ORG=basyx
+      - OCPP_CS_PORT=9000
+    volumes:
+      - ./CustomDatabridge:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      aas-env:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    networks:
+      - basyx-network
+    restart: on-failure
+
+  aas-workflow-gui:
+    build:
+      context: ./GUI
+      dockerfile: Dockerfile
+    container_name: aas-workflow-gui
+    ports:
+      - "${GUI_PORT:-5000}:5000"
+    volumes:
+      - ./GUI:/app
+      - .:/app/project_root
+    environment:
+      - AAS_SERVER_URL=http://aas-env:8081
+      - AAS_REGISTRY_URL=http://aas-registry:8081
+      - SM_REGISTRY_URL=http://sm-registry:8081
+      - AAS_DISCOVERY_URL=http://aas-discovery:8081
+      - ORCHESTRATOR_URL=http://testorchestrator:8082
+      - INFLUXDB_URL=http://influxdb:8086
+      - GRAFANA_URL=http://grafana:3000
+      - MQTT_URL=tcp://mosquitto:1883
+      - GUI_URL=http://${HOST_IP:-localhost}:${GUI_PORT:-5000}
+      - BASYX_UI_PORT=${UI_PORT:-3000}
+    networks:
+      - basyx-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ext-kafka
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - basyx-network
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SECURITY_COOKIE_SAMESITE=disabled
+      - GF_SECURITY_COOKIE_SECURE=false
+      - GF_SECURITY_CORS_ALLOW_ORIGIN=*
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/
+      - GF_SERVER_DOMAIN=${HOST_IP:-localhost}
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - basyx-network
+    restart: unless-stopped
+
+  testorchestrator:
+    image: inowshin19/testorchestrator:v2.1
+    container_name: testorchestrator
+    ports:
+      - '${ORCHESTRATOR_PORT:-8085}:8082'
+    environment:
+      - SUBMODEL_API_BASE_URL=http://aas-env:8081
+      - SPRING_CONFIG_LOCATION=file:/app/application.properties
+    volumes:
+      - ./basyx/testorchestrator.properties:/app/application.properties
+    restart: on-failure
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      aas-env:
+        condition: service_healthy
+    networks:
+      - basyx-network
+
+  simulator:
+    build:
+      context: ./simulation
+      dockerfile: Dockerfile
+    container_name: ext-simulator
+    ports:
+      - "${MODBUS_PORT:-5020}:5020" # Modbus TCP
+      - "${SIMULATOR_HTTP_PORT:-8099}:8082" # HTTP/REST (extern, intern 8082)
+      - "${OPCUA_PORT:-4840}:4840" # OPC-UA
+      - "${DLMS_PORT:-4059}:4059" # DLMS/COSEM TCP
+      - "${BACNET_PORT:-47808}:47808/udp" # BACnet/IP UDP
+    environment:
+      MODBUS_PORT: "5020"
+      HTTP_PORT: "8082"
+      OPCUA_PORT: "4840"
+      MQTT_BROKER: "mosquitto"
+      MQTT_PORT: "1883"
+      KAFKA_BROKER: "kafka:9092"
+      BACNET_PORT: "47808"
+      DLMS_PORT: "4059"
+      OCPP_CS_URL: "ws://databridge_GUI:9000"
+      OCPP_CP_ID: "CP001"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost',5020)); s.close()\"" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - basyx-network

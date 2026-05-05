@@ -1,0 +1,24 @@
+# Shell scripts always LF (so they work on Linux after Windows checkout)
+*.sh        text eol=lf
+
+# Windows scripts stay CRLF
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# Text files: normalize to LF in repo
+.gitignore  text eol=lf
+.gitattributes text eol=lf
+*.py        text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.env       text eol=lf
+
+# Binaries: no conversion
+*.aasx      binary
+*.db        binary
+*.bolt      binary
+*.wal       binary
+*.pyc       binary

@@ -1,0 +1,70 @@
+{
+  "protocol": "opcua",
+  "description": "OPC-UA — Industrieroboter & Förderband (opc.tcp://ext-simulator:4840/simulation/)",
+  "serverUrl": "opc.tcp://ext-simulator:4840/simulation/",
+  "datapoints": [
+    {
+      "nodeId": "ns=2;i=1001",
+      "description": "Robot_Joint1_Position",
+      "type": "FLOAT32",
+      "unit": "°",
+      "samplingInterval": 500,
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "nodeId": "ns=2;i=1002",
+      "description": "Robot_Joint2_Position",
+      "type": "FLOAT32",
+      "unit": "°",
+      "samplingInterval": 500,
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "nodeId": "ns=2;i=1003",
+      "description": "Robot_Speed",
+      "type": "FLOAT32",
+      "unit": "mm/s",
+      "samplingInterval": 500,
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "nodeId": "ns=2;i=1004",
+      "description": "Conveyor_Speed",
+      "type": "FLOAT32",
+      "unit": "m/min",
+      "samplingInterval": 500,
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "nodeId": "ns=2;i=1005",
+      "description": "Conveyor_Running",
+      "type": "BOOL",
+      "unit": "",
+      "samplingInterval": 500,
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "nodeId": "ns=2;i=2001",
+      "description": "ConveyorSpeed_SP",
+      "type": "FLOAT32",
+      "unit": "m/min",
+      "samplingInterval": 500,
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    },
+    {
+      "nodeId": "ns=2;i=2002",
+      "description": "RobotSpeedLimit_SP",
+      "type": "FLOAT32",
+      "unit": "mm/s",
+      "samplingInterval": 500,
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    }
+  ]
+}

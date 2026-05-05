@@ -1,0 +1,4 @@
+pymodbus>=3.6.0,<3.10.0
+paho-mqtt>=1.6.0
+flask>=3.0.0
+kafka-python>=2.0.0

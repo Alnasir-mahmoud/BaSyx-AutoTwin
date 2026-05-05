@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# ════════════════════════════════════════════════════════════════════
+#   AAS-Studio · One-Click-Bootstrap  (Linux / macOS)
+# ════════════════════════════════════════════════════════════════════
+#   Usage:   ./start.sh              ← normal start
+#            ./start.sh clean        ← tear down + rebuild
+#            ./start.sh status       ← only show URLs, no restart
+# ════════════════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+ACTION="${1:-start}"
+
+# ── Colors ────────────────────────────────────────────────────────────
+RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
+CYAN='\033[0;36m'; GRAY='\033[0;37m'; BOLD='\033[1m'; NC='\033[0m'
+
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  AAS-Studio · Bootstrap                                            ${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# ─────────────────────────────────────────────────────────────────────
+# 1. Detect best LAN IP
+# ─────────────────────────────────────────────────────────────────────
+
+get_best_lan_ip() {
+    local ip
+    # Best method: follow the default route
+    ip=$(ip route get 1.1.1.1 2>/dev/null \
+        | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+    if [[ -n "$ip" && "$ip" != 127.* ]]; then
+        echo "$ip"; return
+    fi
+    # Fallback: first non-loopback, non-link-local IPv4
+    ip=$(hostname -I 2>/dev/null \
+        | tr ' ' '\n' \
+        | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+        | grep -v '^127\.' \
+        | grep -v '^169\.254\.' \
+        | head -1)
+    if [[ -n "$ip" ]]; then
+        echo "$ip"; return
+    fi
+    echo "localhost"
+}
+
+HOST_IP=$(get_best_lan_ip)
+echo -e "${GREEN}Host-IP erkannt:  $HOST_IP${NC}"
+
+# Show all IPs
+ALL_IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+    | grep -v '^127\.' || true)
+IP_COUNT=$(echo "$ALL_IPS" | grep -c . || true)
+if ((IP_COUNT > 1)); then
+    echo -e "${GRAY}  (verfügbare Adressen:)${NC}"
+    while IFS= read -r a; do
+        [[ -z "$a" ]] && continue
+        marker=" "; [[ "$a" == "$HOST_IP" ]] && marker="*"
+        echo -e "${GRAY}   $marker $a${NC}"
+    done <<< "$ALL_IPS"
+fi
+echo ""
+
+# ─────────────────────────────────────────────────────────────────────
+# 2. Port scanning — find a free port near each default
+# ─────────────────────────────────────────────────────────────────────
+
+# Check port availability via Python (works on all Linux without root)
+port_is_free() {
+    python3 - "$1" <<'PYEOF' 2>/dev/null
+import socket, sys
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    s.bind(('', int(sys.argv[1])))
+    s.close()
+    sys.exit(0)
+except OSError:
+    sys.exit(1)
+PYEOF
+}
+
+find_free_port() {
+    local default=$1 step=${2:-100} max=${3:-20}
+    local port=$default
+    for ((i=0; i<max; i++)); do
+        if port_is_free "$port"; then echo "$port"; return; fi
+        port=$((port + step))
+        ((port > 65000)) && port=49152
+    done
+    echo "ERROR: no free port near $default" >&2; exit 1
+}
+
+# Ordered list of services with their default ports
+declare -a PORT_KEYS=(
+    GUI_PORT AAS_ENV_PORT AAS_REGISTRY_PORT SM_REGISTRY_PORT
+    DISCOVERY_PORT ORCHESTRATOR_PORT INFLUXDB_PORT CONTAINER_API_PORT
+    MQTT_PORT UI_PORT GRAFANA_PORT OPCUA_PORT MODBUS_PORT
+    SIMULATOR_HTTP_PORT KAFKA_PORT
+)
+declare -A PORT_DEFAULTS=(
+    [GUI_PORT]=5000
+    [AAS_ENV_PORT]=8081
+    [AAS_REGISTRY_PORT]=8082
+    [SM_REGISTRY_PORT]=8083
+    [DISCOVERY_PORT]=8084
+    [ORCHESTRATOR_PORT]=8085
+    [INFLUXDB_PORT]=8086
+    [CONTAINER_API_PORT]=8090
+    [MQTT_PORT]=1883
+    [UI_PORT]=3000
+    [GRAFANA_PORT]=3001
+    [OPCUA_PORT]=4840
+    [MODBUS_PORT]=5020
+    [SIMULATOR_HTTP_PORT]=8099
+    [KAFKA_PORT]=9092
+)
+
+echo -e "${CYAN}Port-Scan:${NC}"
+declare -A PORTS=()
+CONFLICTS=0
+for KEY in "${PORT_KEYS[@]}"; do
+    DEFAULT=${PORT_DEFAULTS[$KEY]}
+    RESOLVED=$(find_free_port "$DEFAULT")
+    PORTS[$KEY]=$RESOLVED
+    if [[ "$RESOLVED" != "$DEFAULT" ]]; then
+        CONFLICTS=$((CONFLICTS + 1))
+        printf "  ${YELLOW}%-22s %5d  →  %5d  (Default belegt)${NC}\n" \
+            "$KEY" "$DEFAULT" "$RESOLVED"
+    else
+        printf "  ${GREEN}%-22s %5d  ✓${NC}\n" "$KEY" "$DEFAULT"
+    fi
+done
+echo ""
+((CONFLICTS > 0)) && echo -e "${YELLOW}  $CONFLICTS Port(s) wurden umgemappt.${NC}"
+
+# ─────────────────────────────────────────────────────────────────────
+# 3. Write .env
+# ─────────────────────────────────────────────────────────────────────
+
+ENV_PATH="$SCRIPT_DIR/.env"
+[[ -f "$ENV_PATH" ]] && cp "$ENV_PATH" "$ENV_PATH.bak" \
+    && echo "Backup der bisherigen .env nach .env.bak"
+
+{
+    echo "# Auto-generated by start.sh — do not edit manually."
+    echo "# Run ./start.sh to regenerate."
+    echo "HOST_IP=$HOST_IP"
+    for KEY in "${PORT_KEYS[@]}"; do
+        echo "$KEY=${PORTS[$KEY]}"
+    done
+} > "$ENV_PATH"
+echo -e "${GREEN}[OK]  .env geschrieben${NC}"
+
+# ─────────────────────────────────────────────────────────────────────
+# 4. Write GUI/connection.json
+# ─────────────────────────────────────────────────────────────────────
+
+CONN_PATH="$SCRIPT_DIR/GUI/connection.json"
+python3 - << PYEOF
+import json
+data = {
+    "host": "${HOST_IP}",
+    "ports": {
+        "aas":          ${PORTS[AAS_ENV_PORT]},
+        "aas_registry": ${PORTS[AAS_REGISTRY_PORT]},
+        "sm_registry":  ${PORTS[SM_REGISTRY_PORT]},
+        "discovery":    ${PORTS[DISCOVERY_PORT]},
+        "orchestrator": ${PORTS[ORCHESTRATOR_PORT]},
+        "influxdb":     ${PORTS[INFLUXDB_PORT]},
+        "mqtt":         ${PORTS[MQTT_PORT]},
+        "grafana":      ${PORTS[GRAFANA_PORT]},
+        "ui":           ${PORTS[UI_PORT]}
+    }
+}
+with open("${CONN_PATH}", "w") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+echo -e "${GREEN}[OK]  GUI/connection.json geschrieben${NC}"
+echo ""
+
+# ─────────────────────────────────────────────────────────────────────
+# 5. Docker action
+# ─────────────────────────────────────────────────────────────────────
+
+if ! docker version >/dev/null 2>&1; then
+    echo -e "${RED}[ERROR] Docker Engine nicht erreichbar.${NC}"
+    echo        "        Bitte Docker starten und erneut versuchen."
+    exit 2
+fi
+
+case "$ACTION" in
+    status)
+        echo -e "${CYAN}Status (kein Restart):${NC}"
+        docker compose ps
+        ;;
+    clean)
+        echo -e "${CYAN}Tearing down stack...${NC}"
+        docker compose down --volumes --remove-orphans
+        echo -e "${CYAN}Rebuilding + starting...${NC}"
+        docker compose up -d --build
+        ;;
+    *)
+        echo -e "${CYAN}Starting docker-compose stack...${NC}"
+        docker compose up -d --build
+        ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────
+# 6. Summary
+# ─────────────────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${GREEN}════════════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  Stack ist hochgefahren                                            ${NC}"
+echo -e "${GREEN}════════════════════════════════════════════════════════════════════${NC}"
+printf "  Studio-GUI      http://%s:%s\n" "$HOST_IP" "${PORTS[GUI_PORT]}"
+printf "  BaSyx Web UI    http://%s:%s\n" "$HOST_IP" "${PORTS[UI_PORT]}"
+printf "  Grafana         http://%s:%s\n" "$HOST_IP" "${PORTS[GRAFANA_PORT]}"
+printf "  InfluxDB        http://%s:%s\n" "$HOST_IP" "${PORTS[INFLUXDB_PORT]}"
+printf "  AAS REST-API    http://%s:%s\n" "$HOST_IP" "${PORTS[AAS_ENV_PORT]}"
+printf "  AAS Registry    http://%s:%s\n" "$HOST_IP" "${PORTS[AAS_REGISTRY_PORT]}"
+printf "  SM Registry     http://%s:%s\n" "$HOST_IP" "${PORTS[SM_REGISTRY_PORT]}"
+printf "  Orchestrator    http://%s:%s\n" "$HOST_IP" "${PORTS[ORCHESTRATOR_PORT]}"
+printf "  Container-API   http://%s:%s\n" "$HOST_IP" "${PORTS[CONTAINER_API_PORT]}"
+printf "  MQTT-Broker     tcp://%s:%s\n"  "$HOST_IP" "${PORTS[MQTT_PORT]}"
+echo ""
+echo -e "${CYAN}Studio-GUI öffnen:${NC}"
+echo -e "  \033[1;44m http://$HOST_IP:${PORTS[GUI_PORT]} \033[0m"
+echo ""

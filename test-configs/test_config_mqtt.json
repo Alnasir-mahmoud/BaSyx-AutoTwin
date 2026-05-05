@@ -1,0 +1,90 @@
+{
+  "protocol": "mqtt",
+  "description": "MQTT — Solaranlage & Wärmepumpe (ext-Simulator via mosquitto:1883)",
+  "broker": "mosquitto",
+  "port": 1883,
+  "qos": 0,
+  "datapoints": [
+    {
+      "topic": "simulation/solar/power",
+      "description": "SolarPower",
+      "type": "FLOAT32",
+      "unit": "W",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "topic": "simulation/solar/voltage",
+      "description": "SolarVoltage",
+      "type": "FLOAT32",
+      "unit": "V",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "topic": "simulation/solar/irradiance",
+      "description": "SolarIrradiance",
+      "type": "FLOAT32",
+      "unit": "W/m²",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "topic": "simulation/heatpump/power",
+      "description": "HeatpumpPower",
+      "type": "FLOAT32",
+      "unit": "W",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "topic": "simulation/heatpump/flow_temp",
+      "description": "HeatpumpFlowTemp",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "topic": "simulation/heatpump/return_temp",
+      "description": "HeatpumpReturnTemp",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "topic": "simulation/heatpump/cop",
+      "description": "HeatpumpCOP",
+      "type": "FLOAT32",
+      "unit": "",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "topic": "simulation/control/heatpump_power",
+      "description": "HeatpumpPower_SP",
+      "type": "FLOAT32",
+      "unit": "W",
+      "jsonPath": "value",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    },
+    {
+      "topic": "simulation/control/solar_inverter_limit",
+      "description": "SolarInverterLimit_SP",
+      "type": "FLOAT32",
+      "unit": "W",
+      "jsonPath": "value",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    }
+  ]
+}

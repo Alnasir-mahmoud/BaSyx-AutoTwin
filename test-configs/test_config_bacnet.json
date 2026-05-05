@@ -1,0 +1,82 @@
+{
+  "protocol": "bacnet",
+  "description": "BACnet/IP — HVAC-System (ext-Simulator, device-instance=100, UDP Port 47808)",
+  "host": "ext-simulator",
+  "port": 47808,
+  "deviceInstance": 100,
+  "timeout": 3000,
+  "datapoints": [
+    {
+      "objectId": "analogInput:0",
+      "propertyId": "presentValue",
+      "description": "HvacZoneTemp",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "objectId": "analogInput:1",
+      "propertyId": "presentValue",
+      "description": "HvacSupplyTemp",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "objectId": "analogInput:2",
+      "propertyId": "presentValue",
+      "description": "HvacReturnTemp",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "objectId": "analogInput:3",
+      "propertyId": "presentValue",
+      "description": "HvacIndoorHumidity",
+      "type": "FLOAT32",
+      "unit": "%",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "objectId": "analogInput:4",
+      "propertyId": "presentValue",
+      "description": "HvacFanSpeed",
+      "type": "FLOAT32",
+      "unit": "%",
+      "direction": "Read",
+      "vizType": "bargauge"
+    },
+    {
+      "objectId": "analogInput:5",
+      "propertyId": "presentValue",
+      "description": "OutdoorTemperature",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "objectId": "analogOutput:0",
+      "propertyId": "presentValue",
+      "description": "HvacTempSetpoint_SP",
+      "type": "FLOAT32",
+      "unit": "°C",
+      "direction": "ReadWrite",
+      "vizType": "gauge"
+    },
+    {
+      "objectId": "analogOutput:1",
+      "propertyId": "presentValue",
+      "description": "HvacFanSpeed_SP",
+      "type": "FLOAT32",
+      "unit": "%",
+      "direction": "ReadWrite",
+      "vizType": "bargauge"
+    }
+  ]
+}

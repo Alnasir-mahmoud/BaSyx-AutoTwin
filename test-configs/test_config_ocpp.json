@@ -1,0 +1,52 @@
+{
+  "protocol": "ocpp",
+  "description": "OCPP 1.6 — EV-Ladestation CP001 (DataBridge CS ws://databridge_GUI:9000)",
+  "serverUrl": "ws://databridge_GUI:9000",
+  "chargePointId": "CP001",
+  "ocppVersion": "1.6",
+  "polling": 10000,
+  "datapoints": [
+    {
+      "measurand": "Energy.Active.Import.Register",
+      "description": "SessionEnergy",
+      "type": "FLOAT32",
+      "unit": "kWh",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "measurand": "Power.Active.Import",
+      "description": "ChargingPower",
+      "type": "FLOAT32",
+      "unit": "kW",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "measurand": "SoC",
+      "description": "EV_SOC",
+      "type": "FLOAT32",
+      "unit": "%",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "measurand": "Current.Import",
+      "description": "ChargingCurrent",
+      "type": "FLOAT32",
+      "unit": "A",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "measurand": "MaxChargingCurrent",
+      "description": "MaxChargingCurrent_SP",
+      "type": "FLOAT32",
+      "unit": "A",
+      "direction": "ReadWrite",
+      "ocppCommand": "ChangeConfiguration",
+      "ocppConfigKey": "MaxChargingCurrent",
+      "vizType": "gauge"
+    }
+  ]
+}

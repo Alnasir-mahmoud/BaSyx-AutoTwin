@@ -1,0 +1,45 @@
+{
+  "protocol": "kafka",
+  "description": "Kafka — EV-Ladestation Telemetrie (ext-kafka:9092)",
+  "broker": "ext-kafka:9092",
+  "groupId": "databridge-test",
+  "seekTo": "latest",
+  "datapoints": [
+    {
+      "topic": "simulation.ev.soc",
+      "description": "EV_StateOfCharge",
+      "type": "FLOAT32",
+      "unit": "%",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "gauge"
+    },
+    {
+      "topic": "simulation.ev.power",
+      "description": "EV_ChargingPower",
+      "type": "FLOAT32",
+      "unit": "kW",
+      "jsonPath": "value",
+      "direction": "Read",
+      "vizType": "timeseries"
+    },
+    {
+      "topic": "simulation.ev",
+      "description": "EV_SessionEnergy",
+      "type": "FLOAT32",
+      "unit": "kWh",
+      "jsonPath": "session_energy",
+      "direction": "Read",
+      "vizType": "stat"
+    },
+    {
+      "topic": "simulation.ev",
+      "description": "EV_ChargingCurrent",
+      "type": "FLOAT32",
+      "unit": "A",
+      "jsonPath": "charging_current",
+      "direction": "Read",
+      "vizType": "stat"
+    }
+  ]
+}
