@@ -143,12 +143,12 @@ services:
     ports:
       - "${UI_PORT:-3000}:3000"
     environment:
-      AAS_REGISTRY_PATH: "http://localhost:8082/shell-descriptors"
-      SUBMODEL_REGISTRY_PATH: "http://localhost:8083/submodel-descriptors"
-      AAS_REPO_PATH: "http://localhost:8081/shells"
-      SUBMODEL_REPO_PATH: "http://localhost:8081/submodels"
-      CD_REPO_PATH: "http://localhost:8081/concept-descriptions"
-      AAS_DISCOVERY_PATH: "http://localhost:8084/lookup/shells"
+      AAS_REGISTRY_PATH: "http://${HOST_IP:-localhost}:${AAS_REGISTRY_PORT:-8082}/shell-descriptors"
+      SUBMODEL_REGISTRY_PATH: "http://${HOST_IP:-localhost}:${SM_REGISTRY_PORT:-8083}/submodel-descriptors"
+      AAS_REPO_PATH: "http://${HOST_IP:-localhost}:${AAS_ENV_PORT:-8081}/shells"
+      SUBMODEL_REPO_PATH: "http://${HOST_IP:-localhost}:${AAS_ENV_PORT:-8081}/submodels"
+      CD_REPO_PATH: "http://${HOST_IP:-localhost}:${AAS_ENV_PORT:-8081}/concept-descriptions"
+      AAS_DISCOVERY_PATH: "http://${HOST_IP:-localhost}:${DISCOVERY_PORT:-8084}/lookup/shells"
       INFLUXDB_TOKEN: "S18VeAlq042B4naMX31oqIaSGmUmOLAC-DV3VIdkxDJuAhTXLTVFEchyTSmCcUAmB7Wu94KgExzV8gJaDjzR3Q=="
     depends_on:
       - aas-env
@@ -190,7 +190,7 @@ services:
       - >-
         DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=S18VeAlq042B4naMX31oqIaSGmUmOLAC-DV3VIdkxDJuAhTXLTVFEchyTSmCcUAmB7Wu94KgExzV8gJaDjzR3Q==
       - INFLUXD_HTTP_CORS_ENABLED=true
-      - INFLUXD_HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://${HOST_IP}:3000,http://${HOST_IP}:3001
+      - INFLUXD_HTTP_CORS_ALLOWED_ORIGINS=http://localhost:${UI_PORT:-3000},http://localhost:8080,http://${HOST_IP}:${UI_PORT:-3000},http://${HOST_IP}:${GRAFANA_PORT:-3001}
       - INFLUXD_HTTP_CORS_ALLOWED_HEADERS=Accept,Content-Type,Content-Length,Accept-Encoding,Authorization,X-CSRF-Token,X-Requested-With
       - INFLUXD_HTTP_CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS,HEAD
       - INFLUXD_HTTP_CORS_EXPOSE_HEADERS=Date,X-InfluxDB-Version,X-InfluxDB-Build

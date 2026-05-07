@@ -127,6 +127,9 @@ $portDefaults = [ordered]@{
     MODBUS_PORT          = 5020
     SIMULATOR_HTTP_PORT  = 8099
     KAFKA_PORT           = 9092
+    OCPP_CS_PORT         = 9000
+    DLMS_PORT            = 4059
+    BACNET_PORT          = 47808
 }
 
 Write-Host 'Port-Scan:' -ForegroundColor Cyan
