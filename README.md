@@ -318,7 +318,7 @@ Official BaSyx DataBridge (Java): AAS only
 ```json
 {
   "protocol": "modbus",
-  "host": "192.168.1.100",
+  "host": "<DEVICE_IP>",
   "port": 502,
   "slaveId": 1,
   "polling": 1000,
@@ -411,7 +411,7 @@ Official BaSyx DataBridge (Java): AAS only
 ```json
 {
   "protocol": "opcua",
-  "serverUrl": "opc.tcp://192.168.1.100:4840/",
+  "serverUrl": "opc.tcp://<DEVICE_IP>:4840/",
   "datapoints": [
     {
       "nodeId": "ns=2;i=1001",
@@ -452,7 +452,7 @@ Official BaSyx DataBridge (Java): AAS only
 ```json
 {
   "protocol": "http",
-  "baseUrl": "http://192.168.1.100:8080",
+  "baseUrl": "http://<DEVICE_IP>:8080",
   "method": "GET",
   "polling": 5000,
   "datapoints": [
@@ -534,7 +534,7 @@ Official BaSyx DataBridge (Java): not supported
 ```json
 {
   "protocol": "bacnet",
-  "host": "192.168.1.100",
+  "host": "<DEVICE_IP>",
   "port": 47808,
   "deviceInstance": 100,
   "timeout": 3000,
@@ -626,7 +626,7 @@ Official BaSyx DataBridge (Java): not supported
 ```json
 {
   "protocol": "dlms",
-  "host": "192.168.1.100",
+  "host": "<DEVICE_IP>",
   "port": 4059,
   "clientId": 16,
   "logicalDevice": 1,
@@ -790,6 +790,16 @@ When upgrading BaSyx components, refer to the upstream repositories listed above
 ├── start.bat / start.ps1     Windows bootstrap
 └── docker-compose.yml
 ```
+
+---
+
+## Note
+
+This project is under active development. You may encounter bugs, incomplete features, or breaking changes.
+
+If you run into problems or have questions, please open a [Discussion](../../discussions) or contact **mahmoud.mustafa@uni-saarland.de**.
+
+All services run inside a shared Docker bridge network (`basyx-network`). When integrating external devices or services, make sure they are reachable from within that network — use the host machine's LAN IP instead of `localhost`.
 
 ---
 
