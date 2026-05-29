@@ -916,10 +916,13 @@ def _poll_http(source: dict):
             api_stats['http_read'] += 1
             api_stats['http_read_failed'] += 1
         return None
+    with api_stats_lock:
+        api_stats['http_read'] += 1
+        api_stats['http_read_success'] += 1
     try:
         return round(float(val), 4)
     except (TypeError, ValueError):
-        return val
+        return None
 
 def _poll_bacnet(source: dict):
     host    = source.get('host', '')

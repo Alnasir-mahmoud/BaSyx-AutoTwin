@@ -218,7 +218,7 @@ def build_configs(
 
     if not shells:
         print("[WARN] No shells found on AAS server.", flush=True)
-        return [], [], [], []
+        return [], [], [], [], []
 
     print(f"Found {len(shells)} shell(s)\n", flush=True)
 
@@ -410,9 +410,14 @@ def build_configs(
                                   f" qualifier", flush=True)
                             continue
                         http_json_extract = quals.get("HttpResponseJsonPath", "value")
-                        _http_port = port if port is not None else 8082
-                        _host_port = f"{host}:{_http_port}"
-                        full_url = f"http://{_host_port}{http_path}"
+                        _raw_ep = (comm_cfg.get("EndpointURL") or comm_cfg.get("Host") or "")
+                        _scheme = "https" if _raw_ep.lower().startswith("https://") else "http"
+                        _http_port = port if port is not None else (443 if _scheme == "https" else 8082)
+                        if (_scheme == "https" and _http_port == 443) or (_scheme == "http" and _http_port == 80):
+                            _host_port = host
+                        else:
+                            _host_port = f"{host}:{_http_port}"
+                        full_url = f"{_scheme}://{_host_port}{http_path}"
                         source = {
                             "uniqueId":  src_id,
                             "id":        src_id,

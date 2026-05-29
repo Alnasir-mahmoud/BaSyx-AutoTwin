@@ -628,7 +628,7 @@ const PROTOCOL_FIELDS = {
     ],
     http: [
         { sectionTitle: 'Endpunkt' },
-        { id: 'baseUrl', label: 'Basis-URL', type: 'text', placeholder: 'http://192.168.1.50', default: 'http://192.168.1.50', tooltip: 'Basis-URL des REST-Endpoints' },
+        { id: 'baseUrl', label: 'Basis-URL', type: 'text', placeholder: 'https://api.example.com  oder  http://192.168.1.50', default: '', tooltip: 'Basis-URL des REST-Endpoints. http:// für lokale Geräte, https:// für Cloud-APIs (z.B. myPowerGrid, Azure)' },
         { id: 'method', label: 'HTTP-Methode', type: 'select', options: ['GET', 'POST', 'PUT'], default: 'GET', half: true },
         { id: 'contentType', label: 'Content-Type', type: 'select', options: ['application/json', 'text/plain', 'application/xml'], default: 'application/json', half: true },
         { sectionTitle: 'Timing' },

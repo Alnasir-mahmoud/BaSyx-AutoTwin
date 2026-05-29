@@ -185,4 +185,18 @@ def poll_http(source: dict, *, timeout_s: float = 5.0) -> Any:
     except Exception:
         return None
 
-    return json_pick(data, json_path)
+    result = json_pick(data, json_path)
+
+    # If the configured path returned nothing, try myPowerGrid-style response:
+    # {"data": {"attributes": {"values": [...], "datetimes": [...]}}}
+    if result is None:
+        result = json_pick(data, "data.attributes.values[-1]")
+
+    # If the path points directly to an array, take the last element
+    if isinstance(result, list):
+        for v in reversed(result):
+            if v is not None:
+                return v
+        return None
+
+    return result
