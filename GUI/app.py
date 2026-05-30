@@ -618,10 +618,17 @@ def _build_datapoints_smc(protocol, rows, asset_name=""):
                    value=WEB_IFRAME_PLUGIN_SID),))
 
     dp_smc = model.SubmodelElementCollection(id_short="DataPoints")
+    _used_ids: dict[str, int] = {}
     for dp_idx, row in enumerate(rows):
         raw_name  = (row.get('name') or row.get('description') or row.get('addr')
                      or f"DataPoint_{dp_idx}")
-        prop_id   = sanitize_id_short(raw_name) or f"DataPoint_{dp_idx}"
+        base_id   = sanitize_id_short(raw_name) or f"DataPoint_{dp_idx}"
+        if base_id in _used_ids:
+            _used_ids[base_id] += 1
+            prop_id = f"{base_id}_{_used_ids[base_id]}"
+        else:
+            _used_ids[base_id] = 1
+            prop_id = base_id
         addr      = str(row.get('addr', ''))
         data_type = row.get('type', 'FLOAT32')
         unit      = row.get('unit', '')
@@ -1695,6 +1702,121 @@ def deploy_official_databridge():
         return jsonify({"status": "error",
                         "message": f"Configs written but container restart failed: {e}",
                         "log": log}), 500
+
+def _guess_seq_type(unit, flag, count_id):
+    """Heuristische Schätzung des Messreihen-Typs aus API-Metadaten."""
+    if count_id >= 1001:
+        return None           # virtuelle/berechnete Sensoren überspringen
+    u = (unit or '').lower()
+    if u in ('wh', 'kwh', 'varh'):
+        return 'power_mm_counter_seq'
+    if flag == 8 and u in ('%', 'v', 'a', 'c', 'var', 'w'):
+        return 'avg_mm_gauge_seq'
+    return 'avg_mm_gauge_seq' # allgemeiner Fallback
+
+def _get_oauth2_token(token_url, client_id, client_secret, scope):
+    body = {'client_id': client_id, 'client_secret': client_secret,
+            'grant_type': 'client_credentials'}
+    if scope:
+        body['scope'] = scope
+    r = requests.post(token_url, data=body,
+                      headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                      timeout=10)
+    if r.status_code != 200:
+        raise ValueError(f"Token error {r.status_code}: {r.text[:200]}")
+    token = r.json().get('access_token')
+    if not token:
+        raise ValueError("No access_token in response")
+    return token
+
+@app.route('/api/discover/ems', methods=['POST'])
+def discover_ems():
+    p = request.json or {}
+    try:
+        token = _get_oauth2_token(
+            p.get('tokenUrl', ''), p.get('clientId', ''),
+            p.get('clientSecret', ''), p.get('scope', ''))
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+
+    base = (p.get('baseUrl') or '').rstrip('/')
+    if not base:
+        return jsonify({'status': 'error', 'message': 'baseUrl fehlt'}), 400
+
+    ems_endpoint = p.get('emsEndpoint', '/api/v1/customer/energy_management_systems')
+    try:
+        resp = requests.get(f"{base}{ems_endpoint}",
+                            headers={'Authorization': f'Bearer {token}'}, timeout=10)
+        if resp.status_code != 200:
+            return jsonify({'status': 'error',
+                            'message': f"API {resp.status_code}: {resp.text[:300]}"}), 400
+        data = resp.json()
+        # Versuche generisch items zu extrahieren
+        items = data if isinstance(data, list) else data.get('data', [])
+        ems_list = []
+        for item in items:
+            attrs = item.get('attributes', item)
+            ems_list.append({
+                'id':          item.get('id', ''),
+                'name':        attrs.get('name', str(item.get('id', ''))),
+                'description': attrs.get('description', ''),
+            })
+        return jsonify({'status': 'success', 'ems': ems_list, 'raw': data})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/discover/sensors', methods=['POST'])
+def discover_sensors():
+    p = request.json or {}
+    try:
+        token = _get_oauth2_token(
+            p.get('tokenUrl', ''), p.get('clientId', ''),
+            p.get('clientSecret', ''), p.get('scope', ''))
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+
+    base          = (p.get('baseUrl') or '').rstrip('/')
+    ems_id        = p.get('emsId', '')
+    sensors_ep    = p.get('sensorsEndpoint', '/api/v1/customer/sensors')
+    url_template  = p.get('urlTemplate', '')  # z.B. /api/v1/customer/sensors/{id}/measurements/seq/
+
+    params = {}
+    if ems_id:
+        params['filter[ems_ids]'] = ems_id
+
+    try:
+        resp = requests.get(f"{base}{sensors_ep}",
+                            headers={'Authorization': f'Bearer {token}'},
+                            params=params, timeout=15)
+        if resp.status_code != 200:
+            return jsonify({'status': 'error',
+                            'message': f"API {resp.status_code}: {resp.text[:300]}"}), 400
+        data  = resp.json()
+        items = data if isinstance(data, list) else data.get('data', [])
+        sensors = []
+        for s in items:
+            attrs    = s.get('attributes', s)
+            sid      = str(s.get('id', ''))
+            unit     = str(attrs.get('unit', ''))
+            flag     = int(attrs.get('flag', 0))
+            count_id = int(attrs.get('countId', 0))
+            seq_type = _guess_seq_type(unit, flag, count_id)
+            if seq_type is None:
+                continue
+            if url_template:
+                suggested_url = url_template.replace('{id}', sid).replace('{seq}', seq_type)
+            else:
+                suggested_url = ''
+            sensors.append({
+                'id':          sid,
+                'label':       attrs.get('label', attrs.get('name', sid)),
+                'unit':        unit,
+                'suggestedUrl': suggested_url,
+                'suggestedSeq': seq_type,
+            })
+        return jsonify({'status': 'success', 'sensors': sensors})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

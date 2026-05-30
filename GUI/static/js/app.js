@@ -321,6 +321,72 @@ function renderPropProtocolConfig(proto, savedValues) {
             return;
         }
 
+        if (f.type === 'discovery_panel') {
+            if (inGrid) { html += '</div>'; inGrid = false; }
+            html += `
+<div class="discovery-panel" id="discovery-panel" style="display:none">
+  <p class="proto-section-label" style="margin-top:1.2rem">
+    API Discovery <span style="font-weight:400;font-size:0.8em;opacity:0.7">(optional)</span>
+  </p>
+  <div class="proto-fields-grid">
+    <div class="form-group" style="grid-column:1/-1">
+      <label>Geräte-Endpoint:</label>
+      <input type="text" id="disc-ems-endpoint" class="proto-input"
+             placeholder="/api/v1/customer/energy_management_systems"
+             value="/api/v1/customer/energy_management_systems">
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label>Sensor-Endpoint:</label>
+      <input type="text" id="disc-sensors-endpoint" class="proto-input"
+             placeholder="/api/v1/customer/sensors" value="/api/v1/customer/sensors">
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label>URL-Template <span style="opacity:0.6;font-size:0.85em">({id} = Sensor-ID, {seq} = geschätzter Typ)</span>:</label>
+      <input type="text" id="disc-url-template" class="proto-input"
+             placeholder="/api/v1/customer/sensors/{id}/measurements/seq/{seq}"
+             value="/api/v1/customer/sensors/{id}/measurements/seq/{seq}">
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <button type="button" class="btn-secondary" onclick="discoverEMS()" id="btn-discover-ems">Geräte laden</button>
+      <span id="disc-status" style="margin-left:0.8rem;font-size:0.85em;opacity:0.7"></span>
+    </div>
+  </div>
+  <div id="disc-ems-section" style="display:none;margin-top:0.8rem">
+    <div class="proto-fields-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Gerät auswählen:</label>
+        <select id="disc-ems-dropdown" class="proto-input" onchange="discoverSensors()">
+          <option value="">— bitte wählen —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div id="disc-sensors-section" style="display:none;margin-top:0.8rem">
+    <p class="proto-section-label" style="margin-top:0">Sensoren</p>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:0.85em">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:4px 8px;width:32px"></th>
+            <th style="padding:4px 8px;text-align:left">ID</th>
+            <th style="padding:4px 8px;text-align:left">Label</th>
+            <th style="padding:4px 8px;text-align:left">Einh.</th>
+            <th style="padding:4px 8px;text-align:left;min-width:280px">Name &amp; URL (editierbar)</th>
+          </tr>
+        </thead>
+        <tbody id="disc-sensor-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:0.8rem;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn-secondary" onclick="selectAllDiscSensors(true)">Alle</button>
+      <button type="button" class="btn-secondary" onclick="selectAllDiscSensors(false)">Keine</button>
+      <button type="button" class="btn-primary" onclick="applyDiscoveredSensors()" style="margin-left:auto">Übernehmen als DataPoints</button>
+    </div>
+  </div>
+</div>`;
+            return;
+        }
+
         const saved = savedValues[f.id];
         const isDefault = (saved === undefined || saved === '');
         const val = isDefault ? (f.default !== undefined ? String(f.default) : '') : saved;
@@ -332,7 +398,7 @@ function renderPropProtocolConfig(proto, savedValues) {
         let input = '';
         if (f.type === 'select') {
             const opts = f.options.map(o => `<option value="${o}"${o === val ? ' selected' : ''}>${o}</option>`).join('');
-            input = `<select data-field="${f.id}" onchange="updateAllConditionalFields()" ${tip}>${opts}</select>`;
+            input = `<select data-field="${f.id}" onchange="updateAllConditionalFields();if(this.dataset.field==='authType')updateAllConditionalFieldsAndDiscovery();" ${tip}>${opts}</select>`;
         } else if (f.type === 'checkbox') {
             input = `<label class="checkbox-label"><input type="checkbox" data-field="${f.id}" ${val === 'true' || val === true ? 'checked' : ''} ${tip}> aktiviert</label>`;
         } else {
@@ -346,6 +412,126 @@ function renderPropProtocolConfig(proto, savedValues) {
     if (inGrid) html += '</div>';
     container.innerHTML = html;
     updateAllConditionalFields();
+    updateAllConditionalFieldsAndDiscovery();
+}
+
+// ── Discovery: zeige Panel wenn OAuth2 gewählt ────────────────────────────
+function updateAllConditionalFieldsAndDiscovery() {
+    updateAllConditionalFields();
+    const authSel = document.querySelector('[data-field="authType"]');
+    const panel   = document.getElementById('discovery-panel');
+    if (panel && authSel) {
+        panel.style.display = authSel.value === 'OAuth2 Client-Credentials' ? '' : 'none';
+    }
+}
+
+function _getDiscoveryAuth() {
+    const get = id => (document.querySelector(`[data-field="${id}"]`)?.value || '').trim();
+    return {
+        tokenUrl:     get('oauthTokenUrl'),
+        clientId:     get('clientId'),
+        clientSecret: get('clientSecret'),
+        scope:        get('scope'),
+        baseUrl:      get('baseUrl'),
+    };
+}
+
+async function discoverEMS() {
+    const auth   = _getDiscoveryAuth();
+    const status = document.getElementById('disc-status');
+    const btn    = document.getElementById('btn-discover-ems');
+    if (!auth.tokenUrl || !auth.clientId || !auth.clientSecret) {
+        status.textContent = 'Bitte erst Token-URL, Client-ID und Client-Secret ausfüllen.';
+        return;
+    }
+    btn.disabled    = true;
+    status.textContent = 'Lade Geräte...';
+    try {
+        const res  = await fetch('/api/discover/ems', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ...auth,
+                emsEndpoint: document.getElementById('disc-ems-endpoint')?.value || '',
+            })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.message);
+        const sel = document.getElementById('disc-ems-dropdown');
+        sel.innerHTML = '<option value="">— bitte wählen —</option>' +
+            data.ems.map(e => `<option value="${e.id}">${e.name}${e.description ? ' — ' + e.description : ''} (${e.id})</option>`).join('');
+        document.getElementById('disc-ems-section').style.display = '';
+        document.getElementById('disc-sensors-section').style.display = 'none';
+        status.textContent = `${data.ems.length} Gerät(e) gefunden`;
+    } catch (err) {
+        status.textContent = 'Fehler: ' + err.message;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function discoverSensors() {
+    const emsId  = document.getElementById('disc-ems-dropdown')?.value;
+    if (!emsId) return;
+    const auth   = _getDiscoveryAuth();
+    const status = document.getElementById('disc-status');
+    status.textContent = 'Lade Sensoren...';
+    try {
+        const res  = await fetch('/api/discover/sensors', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ...auth,
+                emsId,
+                sensorsEndpoint: document.getElementById('disc-sensors-endpoint')?.value || '',
+                urlTemplate:     document.getElementById('disc-url-template')?.value || '',
+            })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.message);
+        const tbody = document.getElementById('disc-sensor-tbody');
+        tbody.innerHTML = data.sensors.map((s, i) => `
+<tr style="border-bottom:1px solid var(--border)">
+  <td style="padding:4px 8px"><input type="checkbox" class="disc-chk" data-idx="${i}" checked></td>
+  <td style="padding:4px 8px;opacity:0.7;font-size:0.8em">${s.id}</td>
+  <td style="padding:4px 8px">${s.label}</td>
+  <td style="padding:4px 8px;opacity:0.7">${s.unit}</td>
+  <td style="padding:4px 8px">
+    <input type="text" class="proto-input disc-name-input" data-idx="${i}"
+           placeholder="Name" value="${s.label.replace(/[^a-zA-Z0-9_]/g,'_')}"
+           style="width:120px;margin-right:4px">
+    <input type="text" class="proto-input disc-url-input" data-idx="${i}"
+           value="${s.suggestedUrl}" style="width:100%;min-width:200px;margin-top:2px"
+           title="URL editierbar — {seq} wurde bereits mit '${s.suggestedSeq}' befüllt">
+  </td>
+</tr>`).join('');
+        window._discSensors = data.sensors;
+        document.getElementById('disc-sensors-section').style.display = '';
+        status.textContent = `${data.sensors.length} Sensor(en) gefunden`;
+    } catch (err) {
+        status.textContent = 'Fehler: ' + err.message;
+    }
+}
+
+function selectAllDiscSensors(checked) {
+    document.querySelectorAll('.disc-chk').forEach(el => el.checked = checked);
+}
+
+function applyDiscoveredSensors() {
+    const checkboxes = document.querySelectorAll('.disc-chk');
+    checkboxes.forEach(chk => {
+        if (!chk.checked) return;
+        const idx  = chk.dataset.idx;
+        const name = document.querySelector(`.disc-name-input[data-idx="${idx}"]`)?.value.trim() || `Sensor_${idx}`;
+        const url  = document.querySelector(`.disc-url-input[data-idx="${idx}"]`)?.value.trim() || '';
+        if (!url) return;
+        propTargetRows.push({
+            addr: url, description: name, type: 'FLOAT32',
+            unit: window._discSensors?.[idx]?.unit || '',
+            direction: 'Read', jsonPath: '', byteOrder: 'AB CD',
+        });
+    });
+    renderPropTargetData();
+    document.getElementById('disc-sensors-section').style.display = 'none';
+    document.getElementById('disc-status').textContent = 'DataPoints übernommen';
 }
 
 function onProtoInputChange(el) {
@@ -671,6 +857,7 @@ const PROTOCOL_FIELDS = {
           type: 'text',
           placeholder: 'filter[resolution]=1 minute&filter[tz]=Europe/Berlin',
           tooltip: 'Werden bei jedem Request mitgeschickt (URL-encoded).' },
+        { type: 'discovery_panel' },
     ],
     opcua: [
         { sectionTitle: 'Server-Verbindung' },
